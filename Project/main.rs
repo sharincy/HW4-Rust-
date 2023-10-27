@@ -122,12 +122,52 @@ fn mark_as_complete(tasks: &mut Vec<String>) {
     }
 }
 
+fn save_tasks_to_file(tasks: &Vec<String>, file_name: &str) -> Result<(), std::io::Error> {
+    use std::fs::File;
+    use std::io::Write;
+
+    let mut file = File::create(file_name)?;
+
+    for task in tasks.iter() {
+        file.write_all(task.as_bytes())?;
+        file.write_all(b"\n")?;
+    }
+
+    Ok(())
+}
+
+fn load_tasks_from_file(file_name: &str) -> Result<Vec<String>, std::io::Error> {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+
+    let file = File::open(file_name)?;
+    let reader = BufReader::new(file);
+
+    let mut tasks = Vec::new();
+    for line in reader.lines() {
+        let task = line?;
+        tasks.push(task);
+    }
+
+    Ok(tasks)
+}
+
 
 
 fn main() {
-    // Initialize an empty vector to store tasks
-    let mut tasks: Vec<String> = Vec::new();
+    let file_name = "tasks.txt"; // Define your file name
+
+    // Load tasks from the file (create an empty task list if the file doesn't exist)
+    let mut tasks = match load_tasks_from_file(file_name) {
+        Ok(t) => t,
+        Err(_) => Vec::new(),
+    };
 
     // Call the main menu function
     main_menu(&mut tasks);
+
+    // Save tasks to the file when the program exits
+    if let Err(e) = save_tasks_to_file(&tasks, file_name) {
+        eprintln!("Error saving tasks: {}", e);
+    }
 }

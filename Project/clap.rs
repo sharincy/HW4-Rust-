@@ -224,3 +224,19 @@ fn main() {
         eprintln!("Error saving tasks: {}", e);
     }
 }
+
+
+#[test]
+fn test_add_task() {
+    let mut tasks = Vec::new();
+    add_task(&mut tasks, "Task 1", "Description of Task 1");
+    assert_eq!(tasks.len(), 1);
+}
+
+ 
+// The command for each options
+//cargo run --bin wingman add --title "Task 1" --description "Description of Task 1"
+//cargo run --bin wingman view
+//cargo run --bin wingman edit --task_number 1 --title "New Title" --description "Updated Description"
+//cargo run --bin wingman delete --task_number 1
+//cargo run --bin wingman mark-complete --task_number 1

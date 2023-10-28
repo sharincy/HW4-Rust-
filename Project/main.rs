@@ -1,4 +1,54 @@
-fn main_menu(tasks: &mut Vec<String>) {
+use std::io;
+
+// Define a custom data structure for tasks
+struct Task {
+    title: String,
+    description: String,
+    completed: bool,
+}
+
+impl Task {
+    // Constructor
+    fn new(title: String, description: String) -> Task {
+        Task {
+            title,
+            description,
+            completed: false,
+        }
+    }
+
+    // A method to convert a task to a string for saving to a file
+    fn to_string(&self) -> String {
+        format!("Title: {}\nDescription: {}\nCompleted: {}\n", self.title, self.description, self.completed)
+    }
+
+    // A method to create a task from a string loaded from a file
+    fn from_string(s: &str) -> Task {
+        let mut title = String::new();
+        let mut description = String::new();
+        let mut completed = false;
+
+        for line in s.lines() {
+            let parts: Vec<&str> = line.splitn(2, ": ").collect();
+            if parts.len() == 2 {
+                match parts[0] {
+                    "Title" => title = parts[1].to_string(),
+                    "Description" => description = parts[1].to_string(),
+                    "Completed" => completed = parts[1].trim() == "true",
+                    _ => {}
+                }
+            }
+        }
+
+        Task {
+            title,
+            description,
+            completed,
+        }
+    }
+}
+
+fn main_menu(tasks: &mut Vec<Task>) {
     println!("Todo List Menu:");
     println!("1. View Tasks");
     println!("2. Add Task");
@@ -7,92 +57,72 @@ fn main_menu(tasks: &mut Vec<String>) {
     println!("5. Mark as Complete");
     println!("0. Exit");
 
-    // Capture user input
     let choice = get_user_input();
 
-    // Based on the choice, call the corresponding function, in match I try to cooporate the Recursion
-    match choice.as_str() { // Convert the String to &str
+    match choice.as_str() {
         "1" => view_tasks(tasks),
         "2" => add_task(tasks),
         "3" => edit_task(tasks),
         "4" => delete_task(tasks),
         "5" => mark_as_complete(tasks),
-        "0" => return, // Exit the program
+        "0" => return,
         _ => {
             println!("Invalid choice. Please try again.");
-            main_menu(tasks); // Redisplay the main menu
+            main_menu(tasks);
         }
     }
 }
 
-
 fn get_user_input() -> String {
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input).expect("Failed to read input");
-    input.trim().to_string()
-}
+    io::stdin().read_line(&mut input).expect("Failed to read input");
+    input.trim().to_string()  // read from Read trait parameter
+    // example: fn func<R: Read>(r: &mut Read) ...
+} 
 
-
-fn view_tasks(tasks: &Vec<String>) {
+fn view_tasks(tasks: &Vec<Task>) {
     println!("Viewing tasks:");
-    // Retrieve and display tasks
     for (index, task) in tasks.iter().enumerate() {
-        println!("Task {}: {}", index + 1, task);
+        println!("Task {}: Title: {}, Description: {}, Completed: {}", index + 1, task.title, task.description, task.completed);
     }
 }
 
-
-fn add_task(tasks: &mut Vec<String>) {
+fn add_task(tasks: &mut Vec<Task>) {
     println!("Adding a new task:");
-
-    // Prompt for task title and description
     println!("Enter task title:");
     let title = get_user_input();
-
     println!("Enter task description:");
     let description = get_user_input();
-
-    // Create a new task and add it to the task list
-    let new_task = format!("Title: {}, Description: {}", title, description);
+    let new_task = Task::new(title, description);
     tasks.push(new_task);
-
     println!("Task added successfully.");
 }
 
-
-fn edit_task(tasks: &mut Vec<String>) {
+fn edit_task(tasks: &mut Vec<Task>) {
     println!("Editing a task:");
-
-    // Prompt for the task number to edit
     println!("Enter the task number to edit:");
     let task_number = get_user_input().parse::<usize>().unwrap();
 
     if task_number <= tasks.len() {
-        // Prompt for the updated title and description
         println!("Enter the updated task title:");
         let title = get_user_input();
-
         println!("Enter the updated task description:");
         let description = get_user_input();
-
-        // Update the task in the task list
-        tasks[task_number - 1] = format!("Title: {}, Description: {}", title, description);
+        let task = &mut tasks[task_number - 1];
+        task.title = title;
+        task.description = description;
         println!("Task edited successfully.");
     } else {
         println!("Invalid task number.");
     }
 }
 
-
-fn delete_task(tasks: &mut Vec<String>) {
+fn delete_task(tasks: &mut Vec<Task>) {
     println!("Deleting a task:");
-
-    // Prompt for the task number to delete
     println!("Enter the task number to delete:");
     let task_number = get_user_input().parse::<usize>().unwrap();
 
     if task_number <= tasks.len() {
-        // Remove the task from the task list
         tasks.remove(task_number - 1);
         println!("Task deleted successfully.");
     } else {
@@ -100,43 +130,36 @@ fn delete_task(tasks: &mut Vec<String>) {
     }
 }
 
-
-fn mark_as_complete(tasks: &mut Vec<String>) {
+fn mark_as_complete(tasks: &mut Vec<Task>) {
     println!("Marking a task as complete:");
-
-    // Prompt for the task number to mark as complete
     println!("Enter the task number to mark as complete:");
     let task_number = get_user_input().parse::<usize>().unwrap();
 
     if task_number <= tasks.len() {
-        // Mark the task as complete by adding a "completed" flag
         let task = &mut tasks[task_number - 1];
-        if !task.contains("[Completed]") {
-            task.push_str(" [Completed]");
-            println!("Task marked as complete.");
-        } else {
-            println!("Task is already marked as complete.");
-        }
+        task.completed = true;
+        println!("Task marked as complete.");
     } else {
         println!("Invalid task number.");
     }
 }
 
-fn save_tasks_to_file(tasks: &Vec<String>, file_name: &str) -> Result<(), std::io::Error> {
+fn save_tasks_to_file(tasks: &Vec<Task>, file_name: &str) -> Result<(), std::io::Error> {
     use std::fs::File;
     use std::io::Write;
 
     let mut file = File::create(file_name)?;
 
     for task in tasks.iter() {
-        file.write_all(task.as_bytes())?;
+        let task_string = task.to_string();
+        file.write_all(task_string.as_bytes())?;
         file.write_all(b"\n")?;
     }
 
     Ok(())
 }
 
-fn load_tasks_from_file(file_name: &str) -> Result<Vec<String>, std::io::Error> {
+fn load_tasks_from_file(file_name: &str) -> Result<Vec<Task>, std::io::Error> {
     use std::fs::File;
     use std::io::{BufRead, BufReader};
 
@@ -144,30 +167,44 @@ fn load_tasks_from_file(file_name: &str) -> Result<Vec<String>, std::io::Error> 
     let reader = BufReader::new(file);
 
     let mut tasks = Vec::new();
+    let mut task_str = String::new();
     for line in reader.lines() {
-        let task = line?;
-        tasks.push(task);
+        let line = line?;
+        if line.is_empty() {
+            if !task_str.is_empty() {
+                tasks.push(Task::from_string(&task_str));
+                task_str.clear();
+            }
+        } else {
+            task_str.push_str(&line);
+            task_str.push_str("\n");
+        }
+    }
+
+    if !task_str.is_empty() {
+        tasks.push(Task::from_string(&task_str));
     }
 
     Ok(tasks)
 }
 
-
-
 fn main() {
-    let file_name = "tasks.txt"; // Define your file name
+    let file_name = "tasks.txt";
 
-    // Load tasks from the file (create an empty task list if the file doesn't exist)
     let mut tasks = match load_tasks_from_file(file_name) {
         Ok(t) => t,
         Err(_) => Vec::new(),
     };
 
-    // Call the main menu function
     main_menu(&mut tasks);
 
-    // Save tasks to the file when the program exits
     if let Err(e) = save_tasks_to_file(&tasks, file_name) {
         eprintln!("Error saving tasks: {}", e);
     }
 }
+
+
+
+//export as many files like json or other stuffs
+//
+

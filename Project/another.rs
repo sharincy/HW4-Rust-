@@ -1,52 +1,15 @@
-use std::io;
+use serde::{Serialize, Deserialize};
+use serde_json;
+
 
 // Define a custom data structure for tasks
+#[derive(Serialize, Deserialize, Debug)]
 struct Task {
     title: String,
     description: String,
     completed: bool,
 }
 
-impl Task {
-    // Constructor
-    fn new(title: String, description: String) -> Task {
-        Task {
-            title,
-            description,
-            completed: false,
-        }
-    }
-
-    // A method to convert a task to a string for saving to a file
-    fn to_string(&self) -> String {
-        format!("Title: {}\nDescription: {}\nCompleted: {}\n", self.title, self.description, self.completed)
-    }
-
-    // A method to create a task from a string loaded from a file
-    fn from_string(s: &str) -> Task {
-        let mut title = String::new();
-        let mut description = String::new();
-        let mut completed = false;
-
-        for line in s.lines() {
-            let parts: Vec<&str> = line.splitn(2, ": ").collect();
-            if parts.len() == 2 {
-                match parts[0] {
-                    "Title" => title = parts[1].to_string(),
-                    "Description" => description = parts[1].to_string(),
-                    "Completed" => completed = parts[1].trim() == "true",
-                    _ => {}
-                }
-            }
-        }
-
-        Task {
-            title,
-            description,
-            completed,
-        }
-    }
-}
 
 fn main_menu(tasks: &mut Vec<Task>) {
     println!("Todo List Menu:");
@@ -57,8 +20,10 @@ fn main_menu(tasks: &mut Vec<Task>) {
     println!("5. Mark as Complete");
     println!("0. Exit");
 
+    // Capture user input
     let choice = get_user_input();
 
+    // Based on the choice, call the corresponding function, in match I try to cooporate the Recursion
     match choice.as_str() {
         "1" => view_tasks(tasks),
         "2" => add_task(tasks),
@@ -73,55 +38,81 @@ fn main_menu(tasks: &mut Vec<Task>) {
     }
 }
 
+
 fn get_user_input() -> String {
     let mut input = String::new();
-    io::stdin().read_line(&mut input).expect("Failed to read input");
+    std::io::stdin().read_line(&mut input).expect("Failed to read input");
     input.trim().to_string()
 }
 
+
 fn view_tasks(tasks: &Vec<Task>) {
     println!("Viewing tasks:");
+    // Retrieve and display tasks
     for (index, task) in tasks.iter().enumerate() {
-        println!("Task {}: Title: {}, Description: {}, Completed: {}", index + 1, task.title, task.description, task.completed);
+        println!("Task {}: {:?}", index + 1, task);
     }
 }
 
+
 fn add_task(tasks: &mut Vec<Task>) {
     println!("Adding a new task:");
+
+    // Prompt for task title and description
     println!("Enter task title:");
     let title = get_user_input();
+
     println!("Enter task description:");
     let description = get_user_input();
-    let new_task = Task::new(title, description);
+
+    // Create a new task and add it to the task list
+    let new_task = Task {
+        title,
+        description,
+        completed: false, // You can set it to false by default
+    };
     tasks.push(new_task);
+
     println!("Task added successfully.");
 }
 
+
+
 fn edit_task(tasks: &mut Vec<Task>) {
     println!("Editing a task:");
+
+    // Prompt for the task number to edit
     println!("Enter the task number to edit:");
     let task_number = get_user_input().parse::<usize>().unwrap();
 
     if task_number <= tasks.len() {
+        // Prompt for the updated title and description
         println!("Enter the updated task title:");
         let title = get_user_input();
+
         println!("Enter the updated task description:");
         let description = get_user_input();
-        let task = &mut tasks[task_number - 1];
-        task.title = title;
-        task.description = description;
+
+        // Update the task in the task list
+        tasks[task_number - 1].title = title;
+        tasks[task_number - 1].description = description;
         println!("Task edited successfully.");
     } else {
         println!("Invalid task number.");
     }
 }
 
+
+
 fn delete_task(tasks: &mut Vec<Task>) {
     println!("Deleting a task:");
+
+    // Prompt for the task number to delete
     println!("Enter the task number to delete:");
     let task_number = get_user_input().parse::<usize>().unwrap();
 
     if task_number <= tasks.len() {
+        // Remove the task from the task list
         tasks.remove(task_number - 1);
         println!("Task deleted successfully.");
     } else {
@@ -129,67 +120,58 @@ fn delete_task(tasks: &mut Vec<Task>) {
     }
 }
 
+
 fn mark_as_complete(tasks: &mut Vec<Task>) {
     println!("Marking a task as complete:");
+
+    // Prompt for the task number to mark as complete
     println!("Enter the task number to mark as complete:");
     let task_number = get_user_input().parse::<usize>().unwrap();
 
     if task_number <= tasks.len() {
-        let task = &mut tasks[task_number - 1];
-        task.completed = true;
-        println!("Task marked as complete.");
+        if !tasks[task_number - 1].completed {
+            tasks[task_number - 1].completed = true;
+            println!("Task marked as complete.");
+        } else {
+            println!("Task is already marked as complete.");
+        }
     } else {
         println!("Invalid task number.");
     }
 }
 
+
+
+
 fn save_tasks_to_file(tasks: &Vec<Task>, file_name: &str) -> Result<(), std::io::Error> {
     use std::fs::File;
     use std::io::Write;
 
-    let mut file = File::create(file_name)?;
+    let serialized = serde_json::to_string(&tasks)?;
 
-    for task in tasks.iter() {
-        let task_string = task.to_string();
-        file.write_all(task_string.as_bytes())?;
-        file.write_all(b"\n")?;
-    }
+    let mut file = File::create(file_name)?;
+    file.write_all(serialized.as_bytes())?;
 
     Ok(())
 }
 
 fn load_tasks_from_file(file_name: &str) -> Result<Vec<Task>, std::io::Error> {
     use std::fs::File;
-    use std::io::{BufRead, BufReader};
+    use std::io::Read;
 
-    let file = File::open(file_name)?;
-    let reader = BufReader::new(file);
+    let mut file = File::open(file_name)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
 
-    let mut tasks = Vec::new();
-    let mut task_str = String::new();
-    for line in reader.lines() {
-        let line = line?;
-        if line.is_empty() {
-            if !task_str.is_empty() {
-                tasks.push(Task::from_string(&task_str));
-                task_str.clear();
-            }
-        } else {
-            task_str.push_str(&line);
-            task_str.push_str("\n");
-        }
-    }
-
-    if !task_str.is_empty() {
-        tasks.push(Task::from_string(&task_str));
-    }
+    let tasks: Vec<Task> = serde_json::from_str(&contents)?;
 
     Ok(tasks)
 }
 
 fn main() {
-    let file_name = "tasks.txt";
+    let file_name = "tasks.json"; // Use a JSON file
 
+    // Load tasks from the file (create an empty task list if the file doesn't exist)
     let mut tasks = match load_tasks_from_file(file_name) {
         Ok(t) => t,
         Err(_) => Vec::new(),

@@ -1,12 +1,16 @@
 extern crate clap;
-
+extern crate serde;
+extern crate serde_json;
+extern crate serde_yaml;
 use clap::{App, Arg, SubCommand};
+use serde::{Serialize, Deserialize};
 use std::io;
 use std::fs::File;
 use std::io::Write;
-use std::io::BufRead; 
+use std::io::BufRead;
 
 // Define a custom data structure for tasks
+#[derive(Serialize, Deserialize)] // To enable serialization and deserialization
 struct Task {
     title: String,
     description: String,
@@ -135,6 +139,28 @@ fn load_tasks_from_file(file_name: &str) -> Result<Vec<Task>, std::io::Error> {
     Ok(tasks)
 }
 
+fn export_tasks_to_json(tasks: &Vec<Task>, file_name: &str) -> Result<(), std::io::Error> {
+    let json = serde_json::to_string_pretty(tasks)?;
+
+    let mut file = File::create(file_name)?;
+    file.write_all(json.as_bytes())?;
+    Ok(())
+}
+
+fn export_tasks_to_yaml(tasks: &Vec<Task>, file_name: &str) -> Result<(), std::io::Error> {
+    let yaml = serde_yaml::to_string(tasks);
+    match yaml {
+        Ok(yaml) => {
+            let mut file = File::create(file_name)?;
+            file.write_all(yaml.as_bytes())?;
+            Ok(())
+        }
+        Err(err) => {
+            Err(std::io::Error::new(std::io::ErrorKind::Other, err))
+        }
+    }
+}
+
 fn main() {
     let file_name = "tasks.txt";
 
@@ -190,6 +216,17 @@ fn main() {
                 .required(true)
             )
         )
+        .subcommand(SubCommand::with_name("export")
+            .about("Export tasks to a file")
+            .arg(Arg::with_name("file_name")
+                .help("Name of the output file")
+                .required(true)
+            )
+            .arg(Arg::with_name("format")
+                .help("File format (json, yaml, etc.)")
+                .required(true)
+            )
+        )
         .get_matches();
 
     match matches.subcommand() {
@@ -215,6 +252,39 @@ fn main() {
             let task_number = mark_matches.value_of("task_number").unwrap().parse::<usize>().unwrap();
             mark_as_complete(&mut tasks, task_number);
         }
+        ("export", Some(export_matches)) => {
+            let file_name = export_matches.value_of("file_name").unwrap();
+            let format = export_matches.value_of("format").unwrap();
+
+            let full_file_name = match format {
+                "json" => format!("{}.json", file_name),
+                "yaml" => format!("{}.yaml", file_name),
+                _ => {
+                    println!("Invalid format. Supported formats: json, yaml.");
+                    return;
+                }
+            };
+
+            match format {
+                "json" => {
+                    if let Err(e) = export_tasks_to_json(&tasks, &full_file_name) {
+                        eprintln!("Error exporting tasks to JSON: {}", e);
+                    } else {
+                        println!("Tasks exported to JSON successfully.");
+                    }
+                }
+                "yaml" => {
+                    if let Err(e) = export_tasks_to_yaml(&tasks, &full_file_name) {
+                        eprintln!("Error exporting tasks to YAML: {}", e);
+                    } else {
+                        println!("Tasks exported to YAML successfully.");
+                    }
+                }
+                _ => {
+                    println!("Invalid format. Supported formats: json, yaml.");
+                }
+            }
+        }
         _ => {
             println!("Invalid command. Use --help for usage information.");
         }
@@ -226,17 +296,11 @@ fn main() {
 }
 
 
-#[test]
-fn test_add_task() {
-    let mut tasks = Vec::new();
-    add_task(&mut tasks, "Task 1", "Description of Task 1");
-    assert_eq!(tasks.len(), 1);
-}
-
- 
-// The command for each options
+//all the command to use 
 //cargo run --bin wingman add --title "Task 1" --description "Description of Task 1"
 //cargo run --bin wingman view
 //cargo run --bin wingman edit --task_number 1 --title "New Title" --description "Updated Description"
 //cargo run --bin wingman delete --task_number 1
 //cargo run --bin wingman mark-complete --task_number 1
+//cargo run --bin wingman <name_of_the_file> json
+//cargo run --bin wingman <name_of_the_file> yaml

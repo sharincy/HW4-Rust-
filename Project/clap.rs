@@ -2,6 +2,7 @@ extern crate clap;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
+
 use clap::{App, Arg, SubCommand};
 use serde::{Serialize, Deserialize};
 use std::io;
@@ -10,7 +11,7 @@ use std::io::Write;
 use std::io::BufRead;
 
 // Define a custom data structure for tasks
-#[derive(Serialize, Deserialize)] // To enable serialization and deserialization
+#[derive(Serialize, Deserialize)]
 struct Task {
     title: String,
     description: String,
@@ -29,7 +30,10 @@ impl Task {
 
     // A method to convert a task to a string for saving to a file
     fn to_string(&self) -> String {
-        format!("Title: {}\nDescription: {}\nCompleted: {}\n", self.title, self.description, self.completed)
+        format!(
+            "Title: {}\nDescription: {}\nCompleted: {}\n",
+            self.title, self.description, self.completed
+        )
     }
 
     // A method to create a task from a string loaded from a file
@@ -61,7 +65,13 @@ impl Task {
 fn view_tasks(tasks: &Vec<Task>) {
     println!("Viewing tasks:");
     for (index, task) in tasks.iter().enumerate() {
-        println!("Task {}: Title: {}, Description: {}, Completed: {}", index + 1, task.title, task.description, task.completed);
+        println!(
+            "Task {}: Title: {}, Description: {}, Completed: {}",
+            index + 1,
+            task.title,
+            task.description,
+            task.completed
+        );
     }
 }
 
@@ -182,6 +192,7 @@ fn main() {
             .arg(Arg::with_name("description")
                 .help("Task description")
                 .required(true)
+                .multiple(true) // Allow multiple values (space-separated description)
             )
         )
         .subcommand(SubCommand::with_name("view")
@@ -232,8 +243,9 @@ fn main() {
     match matches.subcommand() {
         ("add", Some(add_matches)) => {
             let title = add_matches.value_of("title").unwrap();
-            let description = add_matches.value_of("description").unwrap();
-            add_task(&mut tasks, title, description);
+            // Join multiple description values with spaces
+            let description = add_matches.values_of("description").unwrap().collect::<Vec<&str>>().join(" ");
+            add_task(&mut tasks, title, &description);
         }
         ("view", Some(_)) => {
             view_tasks(&tasks);
@@ -294,13 +306,3 @@ fn main() {
         eprintln!("Error saving tasks: {}", e);
     }
 }
-
-
-//all the command to use 
-//cargo run --bin wingman add --title "Task 1" --description "Description of Task 1"
-//cargo run --bin wingman view
-//cargo run --bin wingman edit --task_number 1 --title "New Title" --description "Updated Description"
-//cargo run --bin wingman delete --task_number 1
-//cargo run --bin wingman mark-complete --task_number 1
-//cargo run --bin wingman <name_of_the_file> json
-//cargo run --bin wingman <name_of_the_file> yaml

@@ -10,7 +10,6 @@ use std::fs::File;
 use std::io::Write;
 use std::io::BufRead;
 
-// Define a custom data structure for tasks
 #[derive(Serialize, Deserialize)]
 struct Task {
     title: String,
@@ -19,7 +18,6 @@ struct Task {
 }
 
 impl Task {
-    // Constructor
     fn new(title: String, description: String) -> Task {
         Task {
             title,
@@ -28,7 +26,6 @@ impl Task {
         }
     }
 
-    // A method to convert a task to a string for saving to a file
     fn to_string(&self) -> String {
         format!(
             "Title: {}\nDescription: {}\nCompleted: {}\n",
@@ -36,7 +33,6 @@ impl Task {
         )
     }
 
-    // A method to create a task from a string loaded from a file
     fn from_string(s: &str) -> Task {
         let mut title = String::new();
         let mut description = String::new();
@@ -192,7 +188,7 @@ fn main() {
             .arg(Arg::with_name("description")
                 .help("Task description")
                 .required(true)
-                .multiple(true) // Allow multiple values (space-separated description)
+                .multiple(true) 
             )
         )
         .subcommand(SubCommand::with_name("view")
@@ -243,7 +239,6 @@ fn main() {
     match matches.subcommand() {
         ("add", Some(add_matches)) => {
             let title = add_matches.value_of("title").unwrap();
-            // Join multiple description values with spaces
             let description = add_matches.values_of("description").unwrap().collect::<Vec<&str>>().join(" ");
             add_task(&mut tasks, title, &description);
         }
